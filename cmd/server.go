@@ -3,7 +3,6 @@ package cmd
 import (
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 
@@ -69,7 +68,7 @@ func serverHandle(_ *cobra.Command, _ []string) {
 	}
 	limiter.Init()
 	//get node info
-	nodes, err := node.New(c.NodeConfigs, filepath.Dir(config))
+	nodes, err := node.New(c.NodeConfigs)
 	if err != nil {
 		log.WithField("err", err).Error("Get node info failed")
 		return
@@ -114,9 +113,10 @@ func serverHandle(_ *cobra.Command, _ []string) {
 	for {
 		select {
 		case <-osSignals:
+			log.Info("收到退出信号，正在关闭程序...")
 			nodes.Close()
 			_ = v2core.Close()
-			return
+			os.Exit(0)
 		case <-reloadCh:
 			log.Info("收到重启信号，正在重新加载配置...")
 			if err := reload(config, &nodes, &v2core); err != nil {
@@ -170,7 +170,7 @@ func reload(config string, nodes **node.Node, v2core **core.V2Core) error {
 		}
 	}
 
-	newNodes, err := node.New(newConf.NodeConfigs, filepath.Dir(config))
+	newNodes, err := node.New(newConf.NodeConfigs)
 	if err != nil {
 		return err
 	}
