@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	github.com/xtls/xray-core v1.251015.0
+	github.com/xtls/xray-core v1.251201.0
 	golang.org/x/sys v0.38.0
 	google.golang.org/protobuf v1.36.10
 )
@@ -165,9 +165,9 @@ require (
 	github.com/sacloud/go-http v0.1.9 // indirect
 	github.com/sacloud/iaas-api-go v1.16.1 // indirect
 	github.com/sacloud/packages-go v0.0.11 // indirect
-	github.com/sagernet/quic-go v0.54.0-sing-box-mod.3 // indirect
-	github.com/sagernet/sing v0.8.0-beta.5 // indirect
-	github.com/sagernet/sing-quic v0.6.0-beta.3 // indirect
+	github.com/sagernet/quic-go v0.55.0-sing-box-mod.2 // indirect
+	github.com/sagernet/sing v0.8.0-beta.6 // indirect
+	github.com/sagernet/sing-quic v0.6.0-beta.4 // indirect
 	github.com/sagernet/sing-shadowsocks v0.2.7 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -234,4 +234,4 @@ require (
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
 
-replace github.com/xtls/xray-core v1.251015.0 => github.com/wyx2685/xray-core v0.0.0-20251121124640-0dc2d2405202
+replace github.com/xtls/xray-core v1.251201.0 => github.com/wyx2685/xray-core v0.0.0-20251201175443-de3f60967cd7
