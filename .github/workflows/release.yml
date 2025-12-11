@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - pre
     paths:
       - "**/*.go"
       - "go.mod"

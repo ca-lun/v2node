@@ -108,6 +108,9 @@ type DefaultDispatcher struct {
 	fdns         dns.FakeDNSEngine
 	Counter      sync.Map
 	LinkManagers sync.Map // map[string]*LinkManager
+
+	cleanupTicker *time.Ticker
+	cleanupDone   chan struct{}
 }
 
 func init() {
@@ -140,12 +143,64 @@ func (*DefaultDispatcher) Type() interface{} {
 }
 
 // Start implements common.Runnable.
-func (*DefaultDispatcher) Start() error {
+func (d *DefaultDispatcher) Start() error {
+	// Start cleanup goroutine - clean idle connections every 2 minutes
+	d.cleanupTicker = time.NewTicker(2 * time.Minute)
+	d.cleanupDone = make(chan struct{})
+
+	go d.cleanupLoop()
 	return nil
 }
 
+// cleanupLoop periodically cleans up idle connections
+func (d *DefaultDispatcher) cleanupLoop() {
+	maxIdleTime := 5 * time.Minute // Close connections idle for more than 5 minutes
+
+	for {
+		select {
+		case <-d.cleanupDone:
+			return
+		case <-d.cleanupTicker.C:
+			totalClosed := 0
+			totalLinks := 0
+
+			d.LinkManagers.Range(func(key, value interface{}) bool {
+				lm := value.(*LinkManager)
+				closed := lm.CloseIdleLinks(maxIdleTime)
+				totalClosed += closed
+				totalLinks += lm.LinkCount()
+
+				// If LinkManager is empty, we could optionally delete it
+				// But keep it to avoid race conditions with new connections
+				return true
+			})
+
+			if totalClosed > 0 {
+				errors.LogInfo(context.Background(), "Cleaned up ", totalClosed, " idle connections, ", totalLinks, " active links remaining")
+			}
+		}
+	}
+}
+
 // Close implements common.Closable.
-func (*DefaultDispatcher) Close() error { return nil }
+func (d *DefaultDispatcher) Close() error {
+	// Stop cleanup goroutine
+	if d.cleanupTicker != nil {
+		d.cleanupTicker.Stop()
+	}
+	if d.cleanupDone != nil {
+		close(d.cleanupDone)
+	}
+
+	// Close all link managers
+	d.LinkManagers.Range(func(key, value interface{}) bool {
+		lm := value.(*LinkManager)
+		lm.CloseAll()
+		return true
+	})
+
+	return nil
+}
 
 func (d *DefaultDispatcher) getLink(ctx context.Context, network net.Network) (*transport.Link, *transport.Link, *limiter.Limiter, error) {
 	opt := pipe.OptionsFromContext(ctx)

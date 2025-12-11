@@ -5,7 +5,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -111,6 +113,10 @@ func serverHandle(_ *cobra.Command, _ []string) {
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, syscall.SIGINT, syscall.SIGTERM)
 
+	// Periodic GC ticker - every 5 minutes
+	gcTicker := time.NewTicker(5 * time.Minute)
+	defer gcTicker.Stop()
+
 	for {
 		select {
 		case <-osSignals:
@@ -123,6 +129,16 @@ func serverHandle(_ *cobra.Command, _ []string) {
 				log.WithField("err", err).Panic("重启失败")
 			}
 			log.Info("重启成功")
+		case <-gcTicker.C:
+			// Force GC and release memory to OS
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			runtime.GC()
+			debug.FreeOSMemory()
+			var m2 runtime.MemStats
+			runtime.ReadMemStats(&m2)
+			log.Debugf("GC completed: HeapAlloc %dMB -> %dMB, NumGoroutine: %d",
+				m.HeapAlloc/1024/1024, m2.HeapAlloc/1024/1024, runtime.NumGoroutine())
 		}
 	}
 }
