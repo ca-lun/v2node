@@ -16,3 +16,8 @@ output/*
 .idea/*
 new.sh
 quick_update.sh
+vendor/
+
+config.json
+route.json
+*.dat

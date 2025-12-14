@@ -28,6 +28,8 @@ func New(nodes []conf.NodeConfig) (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// 将节点配置中的自定义路由路径传递给NodeInfo
+		info.CustomRoutePath = node.CustomRoutePath
 		n.controllers[i] = NewController(p, &node, info)
 		n.NodeInfos[i] = info
 	}

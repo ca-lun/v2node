@@ -58,7 +58,8 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 		},
 		QueryStrategy: queryStrategy,
 	}
-	//outbound
+
+	//outbound - 先加载默认outbound
 	defaultoutbound, _ := buildDefaultOutbound()
 	coreOutboundConfig := append([]*core.OutboundHandlerConfig{}, defaultoutbound)
 	block, _ := buildBlockOutbound()
@@ -66,7 +67,7 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 	dns, _ := buildDnsOutbound()
 	coreOutboundConfig = append(coreOutboundConfig, dns)
 
-	//route
+	//route - 先添加DNS规则
 	domainStrategy := "AsIs"
 	dnsRule, _ := json.Marshal(map[string]interface{}{
 		"port":        "53",
@@ -76,6 +77,37 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 	coreRouterConfig := &coreConf.RouterConfig{
 		RuleList:       []json.RawMessage{dnsRule},
 		DomainStrategy: &domainStrategy,
+	}
+
+	// 遍历每个节点，加载其本地路由配置（本地规则在前）
+	for _, info := range infos {
+		if info.CustomRoutePath != "" {
+			localConfig, err := LoadLocalRouteConfig(info.Id, info.CustomRoutePath)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			if localConfig != nil {
+				// 添加本地outbound
+				localOutbounds, err := BuildLocalOutbounds(info.Id, localConfig)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				for _, ob := range localOutbounds {
+					if !hasOutboundWithTag(coreOutboundConfig, ob.Tag) {
+						coreOutboundConfig = append(coreOutboundConfig, ob)
+					}
+				}
+				// 应用本地路由配置
+				if localConfig.Routing != nil {
+					if localConfig.Routing.DomainStrategy != nil && *localConfig.Routing.DomainStrategy != "" {
+						coreRouterConfig.DomainStrategy = localConfig.Routing.DomainStrategy
+					}
+					if len(localConfig.Routing.RuleList) > 0 {
+						coreRouterConfig.RuleList = append(coreRouterConfig.RuleList, localConfig.Routing.RuleList...)
+					}
+				}
+			}
+		}
 	}
 
 	for _, info := range infos {
@@ -233,5 +265,6 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	return DnsConfig, coreOutboundConfig, RouterConfig, nil
 }

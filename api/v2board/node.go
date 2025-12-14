@@ -21,13 +21,14 @@ const (
 )
 
 type NodeInfo struct {
-	Id           int
-	Type         string
-	Security     int
-	PushInterval time.Duration
-	PullInterval time.Duration
-	Tag          string
-	Common       *CommonNode
+	Id              int
+	Type            string
+	Security        int
+	PushInterval    time.Duration
+	PullInterval    time.Duration
+	Tag             string
+	Common          *CommonNode
+	CustomRoutePath string
 }
 
 type CommonNode struct {
