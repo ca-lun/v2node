@@ -8,9 +8,10 @@ import (
 )
 
 type Conf struct {
-	LogConfig   LogConfig    `mapstructure:"Log"`
-	NodeConfigs []NodeConfig `mapstructure:"Nodes"`
-	PprofPort   int          `mapstructure:"PprofPort"`
+	LogConfig       LogConfig    `mapstructure:"Log"`
+	NodeConfigs     []NodeConfig `mapstructure:"Nodes"`
+	CustomRoutePath string       `mapstructure:"CustomRoutePath"`
+	PprofPort       int          `mapstructure:"PprofPort"`
 }
 
 type LogConfig struct {

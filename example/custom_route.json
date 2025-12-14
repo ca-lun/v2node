@@ -1,0 +1,37 @@
+{
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "ip": [
+          "0.0.0.0/0"
+        ],
+        "outboundTag": "warp-v4"
+      },
+      {
+        "ip": [
+          "::/0"
+        ],
+        "outboundTag": "warp-v6"
+      }
+    ]
+  },
+  "outbounds": [
+    {
+      "tag": "warp-v4",
+      "protocol": "freedom",
+      "sendThrough": "172.16.0.2",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
+    },
+    {
+      "tag": "warp-v6",
+      "protocol": "freedom",
+      "sendThrough": "2606:4700:110:8177:d22a:cfe4:d090:af9e",
+      "settings": {
+        "domainStrategy": "UseIPv6"
+      }
+    }
+  ]
+}
