@@ -12,6 +12,7 @@ import (
 	"time"
 
 	panel "github.com/wyx2685/v2node/api/v2board"
+	"github.com/wyx2685/v2node/conf"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
@@ -46,16 +47,16 @@ func (v *V2Core) addInbound(config *core.InboundHandlerConfig) error {
 }
 
 // BuildInbound build Inbound config for different protocol
-func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
+func buildInbound(nodeInfo *panel.NodeInfo, tag string, fallbacks []conf.Fallback) (*core.InboundHandlerConfig, error) {
 	in := &coreConf.InboundDetourConfig{}
 	var err error
 	switch nodeInfo.Type {
 	case "vless":
-		err = buildVLess(nodeInfo, in)
+		err = buildVLess(nodeInfo, in, fallbacks)
 	case "vmess":
 		err = buildVMess(nodeInfo, in)
 	case "trojan":
-		err = buildTrojan(nodeInfo, in)
+		err = buildTrojan(nodeInfo, in, fallbacks)
 	case "shadowsocks":
 		err = buildShadowsocks(nodeInfo, in)
 	case "hysteria2":
@@ -170,7 +171,7 @@ func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerCon
 	return in.Build()
 }
 
-func buildVLess(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
+func buildVLess(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig, fallbacks []conf.Fallback) error {
 	v := nodeInfo.Common
 	inbound.Protocol = "vless"
 	var err error
@@ -193,9 +194,11 @@ func buildVLess(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig)
 			return fmt.Errorf("vless decryption method %s is not support", nodeInfo.Common.Encryption)
 		}
 	}
-	s, err := json.Marshal(&coreConf.VLessInboundConfig{
+	vlessConfig := &coreConf.VLessInboundConfig{
 		Decryption: decryption,
-	})
+		Fallbacks:  buildVLessFallbacks(fallbacks),
+	}
+	s, err := json.Marshal(vlessConfig)
 	if err != nil {
 		return fmt.Errorf("marshal vless config error: %s", err)
 	}
@@ -284,10 +287,13 @@ func buildVMess(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig)
 	return nil
 }
 
-func buildTrojan(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
+func buildTrojan(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig, fallbacks []conf.Fallback) error {
 	inbound.Protocol = "trojan"
 	v := nodeInfo.Common
-	s, err := json.Marshal(&coreConf.TrojanServerConfig{})
+	trojanConfig := &coreConf.TrojanServerConfig{
+		Fallbacks: buildTrojanFallbacks(fallbacks),
+	}
+	s, err := json.Marshal(trojanConfig)
 	if err != nil {
 		return fmt.Errorf("marshal trojan settings error: %s", err)
 	}
@@ -494,4 +500,32 @@ func buildAnyTLS(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig
 		return fmt.Errorf("marshal anytls settings error: %s", err)
 	}
 	return nil
+}
+
+func buildVLessFallbacks(panelFallbacks []conf.Fallback) []*coreConf.VLessInboundFallback {
+	var fallbacks []*coreConf.VLessInboundFallback
+	for _, fb := range panelFallbacks {
+		dest, _ := json.Marshal(fb.Dest)
+		fallbacks = append(fallbacks, &coreConf.VLessInboundFallback{
+			Alpn: fb.Alpn,
+			Path: fb.Path,
+			Dest: json.RawMessage(dest),
+			Xver: fb.Xver,
+		})
+	}
+	return fallbacks
+}
+
+func buildTrojanFallbacks(panelFallbacks []conf.Fallback) []*coreConf.TrojanInboundFallback {
+	var fallbacks []*coreConf.TrojanInboundFallback
+	for _, fb := range panelFallbacks {
+		dest, _ := json.Marshal(fb.Dest)
+		fallbacks = append(fallbacks, &coreConf.TrojanInboundFallback{
+			Alpn: fb.Alpn,
+			Path: fb.Path,
+			Dest: json.RawMessage(dest),
+			Xver: fb.Xver,
+		})
+	}
+	return fallbacks
 }

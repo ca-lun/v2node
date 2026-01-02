@@ -21,10 +21,18 @@ type LogConfig struct {
 }
 
 type NodeConfig struct {
-	APIHost string `mapstructure:"ApiHost"`
-	NodeID  int    `mapstructure:"NodeID"`
-	Key     string `mapstructure:"ApiKey"`
-	Timeout int    `mapstructure:"Timeout"`
+	APIHost   string     `mapstructure:"ApiHost"`
+	NodeID    int        `mapstructure:"NodeID"`
+	Key       string     `mapstructure:"ApiKey"`
+	Timeout   int        `mapstructure:"Timeout"`
+	Fallbacks []Fallback `mapstructure:"Fallbacks"`
+}
+
+type Fallback struct {
+	Alpn string      `mapstructure:"Alpn"`
+	Path string      `mapstructure:"Path"`
+	Dest interface{} `mapstructure:"Dest"`
+	Xver uint64      `mapstructure:"Xver"`
 }
 
 func New() *Conf {
