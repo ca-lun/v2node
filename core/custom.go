@@ -122,7 +122,10 @@ func GetCustomConfig(infos []*panel.NodeInfo, customRoutePath string) (*dns.Conf
 					Address: &coreConf.Address{
 						Address: xnet.ParseAddress(*route.ActionValue),
 					},
-					Domains: route.Match,
+				}
+				if len(route.Match) != 0 {
+					server.Domains = route.Match
+					server.SkipFallback = true
 				}
 				coreDnsConfig.Servers = append(coreDnsConfig.Servers, server)
 			case "block":
