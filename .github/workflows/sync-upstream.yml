@@ -1,0 +1,72 @@
+name: Sync Upstream Release
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # 每天5点检查一次
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  sync_and_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          # 注意：如果希望推送 tag 后能自动触发 release.yml 编译并上传文件，
+          # 必须在项目的 Settings -> Secrets and variables -> Actions 中添加一个名为 PAT 的 Personal Access Token
+          # 如果不加上 PAT，因为 Github Actions 限制，默认的 token 无法递归触发另一个 workflow
+          token: ${{ secrets.PAT || github.token }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync and push new release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM_REPO="wyx2685/v2node"
+          
+          # 获取上游最新的 release tag
+          UPSTREAM_TAG=$(gh release view --repo $UPSTREAM_REPO --json tagName -q .tagName)
+          
+          if [ -z "$UPSTREAM_TAG" ]; then
+            echo "Could not fetch upstream tag."
+            exit 1
+          fi
+          
+          echo "Upstream latest release tag: $UPSTREAM_TAG"
+          
+          # 新的 tag 名称
+          NEW_TAG="${UPSTREAM_TAG}-1"
+          
+          # 检查远程是否已经存在这个新的 tag
+          if git ls-remote --tags origin | grep -q "refs/tags/${NEW_TAG}"; then
+            echo "Tag ${NEW_TAG} already exists remotely. Up to date."
+            exit 0
+          fi
+          
+          echo "Syncing code and creating new tag ${NEW_TAG}..."
+          
+          # 添加上游远程仓库并抓取更新
+          git remote add upstream "https://github.com/$UPSTREAM_REPO.git"
+          git fetch upstream
+          
+          # 将上游 tag 合并到当前分支 (main)
+          echo "Merging $UPSTREAM_TAG into main..."
+          git merge $UPSTREAM_TAG -m "Merge upstream release $UPSTREAM_TAG"
+          
+          # 推送合并后的 main 分支
+          git push origin main
+          
+          # 创建并推送新的 tag，这会触发 release.yml (如果配置了 PAT)
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+          
+          echo "Successfully pushed branch and tag $NEW_TAG."
