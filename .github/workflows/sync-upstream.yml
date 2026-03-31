@@ -30,6 +30,7 @@ jobs:
       - name: Sync and push new release tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_PAT: ${{ secrets.PAT }}
         run: |
           UPSTREAM_REPO="wyx2685/v2node"
           
@@ -62,11 +63,23 @@ jobs:
           echo "Merging $UPSTREAM_TAG into main..."
           git merge $UPSTREAM_TAG -m "Merge upstream release $UPSTREAM_TAG"
           
-          # 推送合并后的 main 分支
-          git push origin main
+          # 清理 checkout 留下的凭据，确保后面推送到仓库的认证方式由 URL 指定
+          git config --local --unset-all http.https://github.com/.extraheader || true
           
-          # 创建并推送新的 tag，这会触发 release.yml (如果配置了 PAT)
+          # 使用默认的 GITHUB_TOKEN 推送 main 分支
+          # 由于默认 token 无权限触发其他 workflow，因此 GitHub 强制【屏蔽】本次 push 触发的 release.yml
+          git push "https://x-access-token:${GH_TOKEN}@github.com/$GITHUB_REPOSITORY.git" main
+          
+          # 创建新的 tag
           git tag $NEW_TAG
-          git push origin $NEW_TAG
+          
+          # 根据是否配置了 PAT 来决定 tag 推送方式，只有用 PAT 推送才会触发 release.yml 编译上传
+          if [ -n "$MY_PAT" ]; then
+            echo "Pushing tag with PAT (will trigger release workflow)..."
+            git push "https://x-access-token:${MY_PAT}@github.com/$GITHUB_REPOSITORY.git" $NEW_TAG
+          else
+            echo "Pushing tag with default token (will NOT trigger workflow)..."
+            git push "https://x-access-token:${GH_TOKEN}@github.com/$GITHUB_REPOSITORY.git" $NEW_TAG
+          fi
           
           echo "Successfully pushed branch and tag $NEW_TAG."
