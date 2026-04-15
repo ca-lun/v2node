@@ -3,20 +3,8 @@ name: Build and Release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
-      - main
     tags:
-      - "*"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/release.yml"
-  release:
-    types: [published]
+      - "v*"
 
 jobs:
 
@@ -112,11 +100,11 @@ jobs:
         run: |
           go mod download
       - name: Get release version
-        if: ${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') }}
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           echo "version=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_ENV
       - name: Get other version
-        if: ${{ github.event_name != 'release' && !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
           echo "version=${{ github.sha }}" >> $GITHUB_ENV
       - name: Build v2node
@@ -171,7 +159,7 @@ jobs:
             ./v2node-${{ steps.get_filename.outputs.ASSET_NAME }}/*
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
-        if: ${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') }}
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./v2node-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
