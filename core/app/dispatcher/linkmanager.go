@@ -22,8 +22,9 @@ func (w *ManagedWriter) Close() error {
 }
 
 type LinkManager struct {
-	links map[*ManagedWriter]buf.Reader
-	mu    sync.RWMutex
+	links  map[*ManagedWriter]buf.Reader
+	mu     sync.RWMutex
+	closed bool
 }
 
 func (m *LinkManager) AddLink(writer *ManagedWriter, reader buf.Reader) {
@@ -32,13 +33,17 @@ func (m *LinkManager) AddLink(writer *ManagedWriter, reader buf.Reader) {
 	if m.links == nil {
 		m.links = make(map[*ManagedWriter]buf.Reader)
 	}
-	m.links[writer] = reader
+	if !m.closed {
+		m.links[writer] = reader
+	}
 }
 
 func (m *LinkManager) RemoveWriter(writer *ManagedWriter) {
 	m.mu.Lock()
 	r := m.links[writer]
-	delete(m.links, writer)
+	if !m.closed {
+		delete(m.links, writer)
+	}
 	m.mu.Unlock()
 	if r != nil {
 		// Interrupt the reader to ensure reader goroutines stop
@@ -48,19 +53,18 @@ func (m *LinkManager) RemoveWriter(writer *ManagedWriter) {
 
 func (m *LinkManager) CloseAll() {
 	m.mu.Lock()
-	// Copy links and clear map under lock to avoid races and deadlock
-	links := make(map[*ManagedWriter]buf.Reader, len(m.links))
-	for w, r := range m.links {
-		links[w] = r
+	if m.closed {
+		m.mu.Unlock()
+		return
 	}
-	// clear original map
+	m.closed = true
+
+	links := m.links
 	m.links = make(map[*ManagedWriter]buf.Reader)
 	m.mu.Unlock()
 
-	// Close writers and interrupt readers without holding the manager lock
 	for w, r := range links {
-		// Close the writer. Do not call ManagedWriter.Close while holding mu to avoid reentrance.
-		common.Close(w)
+		common.Close(w.writer)
 		common.Interrupt(r)
 	}
 }
