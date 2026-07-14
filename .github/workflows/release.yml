@@ -34,7 +34,6 @@ jobs:
             goarch: arm
             goarm: 5
           # END Linux ARM 5 6 7
-
           # BEGIN Other architectures
           # BEGIN riscv64 & ARM64
           - goos: linux
